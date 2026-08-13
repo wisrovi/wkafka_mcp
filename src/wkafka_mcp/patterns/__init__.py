@@ -1,1 +1,0 @@
-# wkafka_mcp package
