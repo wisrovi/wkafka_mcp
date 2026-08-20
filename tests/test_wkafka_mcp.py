@@ -106,7 +106,7 @@ def test_blueprints_contains_all_sections():
     """Validates the output of get_wkafka_architect_blueprints.
     
     This test ensures that the blueprint reference document:
-    1. Contains all five updated controller-based wkafka code patterns.
+    1. Contains all seven updated wkafka code patterns (including SASL).
     2. Includes the expert warning headers and required formatting keywords.
     """
     text = server.get_wkafka_architect_blueprints()
@@ -116,6 +116,8 @@ def test_blueprints_contains_all_sections():
         "=== 3. VIDEO FRAME STREAM CONSUMER",
         "=== 4. SEND JSON PRODUCER",
         "=== 5. SEND IMAGE PRODUCER",
+        "=== 6. SASL SECURE SENDER",
+        "=== 7. SASL SECURE CONSUMER",
     ]:
         assert s in text
     assert "WKAFKA EXPERT BLUEPRINTS" in text
