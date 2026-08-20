@@ -486,6 +486,49 @@ def generate_wkafka_producer(
     return code
 
 
+@mcp.tool()
+def adapt_code_to_wkafka(
+    source_code: str,
+    topic: str,
+    value_type: str = "json",
+    kafka_server: str = "localhost:9092",
+    client_name: str = "adapted_service",
+) -> str:
+    """Adapts arbitrary Python processing code to run inside a WKafka consumer trigger.
+
+    Args:
+        source_code: The original Python code snippet containing the main logic to adapt.
+        topic: The Kafka topic that will trigger this processing.
+        value_type: The serialization format (json, image, or file).
+        kafka_server: Bootstrap server address.
+        client_name: The client ID name for Wkafka.
+    """
+    adapted_code = "import cv2\n" if value_type == "image" else ""
+    adapted_code += (
+        "from wkafka.controller import Wkafka\n\n"
+        f"kafka_client = Wkafka(server=\"{kafka_server}\", name=\"{client_name}\")\n\n"
+        f"@kafka_client.consumer(topic=\"{topic}\", value_type=\"{value_type}\")\n"
+        "def process_incoming_message(data):\n"
+        "    \"\"\"Automatically adapted handler wrapping the original processing logic.\"\"\"\n"
+        "    # Access the payload via data.value and headers via data.header / data.headers\n"
+    )
+
+    indented_source = ""
+    for line in source_code.splitlines():
+        if line.strip():
+            indented_source += "    " + line + "\n"
+        else:
+            indented_source += "\n"
+
+    adapted_code += indented_source + "\n"
+    adapted_code += (
+        "if __name__ == \"__main__\":\n"
+        "    print(\"Starting adapted WKafka consumer trigger service...\")\n"
+        "    kafka_client.run_consumers()\n"
+    )
+    return adapted_code
+
+
 # --- CLI Actions ---
 
 
