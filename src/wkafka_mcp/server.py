@@ -713,6 +713,105 @@ def suggest_serializers(sample_data: str) -> str:
     )
 
 
+@mcp.tool()
+def generate_mcp_client_config(agent_type: str = "cursor") -> str:
+    """Generate the exact JSON configuration block to install this MCP server in different AI clients.
+
+    Args:
+        agent_type: Target AI client config structure (cursor, claude_desktop, opencode, or gemini_cli).
+    """
+    python_path = sys.executable
+    agent = agent_type.lower().strip()
+
+    if agent == "cursor":
+        config = {
+            "mcpServers": {
+                "wkafka-mcp": {
+                    "type": "command",
+                    "command": python_path,
+                    "args": ["-m", "wkafka_mcp.server", "run"],
+                    "env": {}
+                }
+            }
+        }
+        return f"Cursor Setup JSON:\n{json.dumps(config, indent=2)}"
+    elif agent == "claude_desktop":
+        config = {
+            "mcpServers": {
+                "wkafka-mcp": {
+                    "command": python_path,
+                    "args": ["-m", "wkafka_mcp.server", "run"]
+                }
+            }
+        }
+        return f"Claude Desktop Setup JSON:\n{json.dumps(config, indent=2)}"
+    elif agent == "opencode":
+        config = {
+            "wkafka-mcp": {
+                "type": "local",
+                "command": [python_path, "-m", "wkafka_mcp.server", "run"],
+                "enabled": True
+            }
+        }
+        return f"OpenCode Config JSONC Snippet:\n{json.dumps(config, indent=2)}"
+    elif agent == "gemini_cli":
+        return (
+            "Gemini CLI Add Command:\n"
+            f"gemini mcp add wkafka-mcp {python_path} -m wkafka_mcp.server run"
+        )
+    else:
+        return f"Unknown agent client type: '{agent_type}'. Supported values: cursor, claude_desktop, opencode, gemini_cli."
+
+
+@mcp.tool()
+def check_schema_compatibility(original_schema: str, new_schema: str) -> str:
+    """Analyze and verify schema compatibility between two message models to prevent compatibility breaks.
+
+    Args:
+        original_schema: Original Python Pydantic class/model representation or attributes dictionary.
+        new_schema: The proposed new Pydantic class/model representation or attributes dictionary.
+    """
+    import re
+
+    def extract_fields(schema_str: str) -> dict:
+        fields = {}
+        for line in schema_str.splitlines():
+            match = re.search(r'^\s*([a-zA-Z_]\w*)\s*:\s*([a-zA-Z_]\w*(?:\[[^\]]+\])?)', line)
+            if match:
+                field_name, field_type = match.groups()
+                has_default = "=" in line or "Optional" in field_type
+                fields[field_name] = {"type": field_type, "optional": has_default}
+        return fields
+
+    orig_fields = extract_fields(original_schema)
+    new_fields = extract_fields(new_schema)
+
+    breaks = []
+    notices = []
+
+    for name, info in orig_fields.items():
+        if name not in new_fields:
+            breaks.append(f"❌ Field '{name}' was deleted. Existing consumer models reading new messages will fail.")
+
+    for name, info in new_fields.items():
+        if name in orig_fields:
+            if orig_fields[name]["type"] != info["type"]:
+                breaks.append(f"❌ Field '{name}' type changed from '{orig_fields[name]['type']}' to '{info['type']}'.")
+        else:
+            if not info["optional"]:
+                breaks.append(f"❌ New field '{name}' is marked as required with no default value. Old producers sending messages will crash new consumers.")
+            else:
+                notices.append(f"ℹ️ New optional field '{name}' added successfully.")
+
+    if breaks:
+        return "⚠️ Backward compatibility broken!\n" + "\n".join(breaks)
+
+    result = "✅ Schemas are backward-compatible.\n"
+    if notices:
+        result += "\n".join(notices)
+    return result
+
+
 # --- CLI Actions ---
 
 
