@@ -32,6 +32,14 @@ To execute the tests within a completely isolated Docker container:
 ./run_tests_docker.sh
 ```
 
+## Code Generation Tools
+
+This MCP server provides targeted tools to generate consumer and producer code immediately:
+- `generate_wkafka_consumer`: Generates fully working consumer callback setups with serialization selection (`json`, `yaml`, `image`) and optional topic key filtering.
+- `generate_wkafka_producer`: Generates safe producer code utilizing the context manager pattern to ensure reliable event delivery.
+
+Both tools support outputting code directly to an absolute target file path.
+
 ## How to Run the MCP Server
 
 ```bash
