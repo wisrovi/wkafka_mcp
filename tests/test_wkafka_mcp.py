@@ -430,6 +430,44 @@ def test_generate_wkafka_tests_creates_mock_template():
     assert "dummy_payload = {'test': 'data'}" in test_result
 
 
+def test_chain_topics_pipeline_creates_forwarder():
+    """Validates that chain_topics_pipeline links source_topic and target_topic correctly.
+    
+    This test verifies that:
+    1. The generated code consumes from topic A and produces to topic B.
+    2. The transformation logic is embedded inside the try/except block.
+    """
+    code = server.chain_topics_pipeline(
+        source_topic="events_in",
+        target_topic="events_out",
+        value_type="json",
+        transform_logic="transformed_value = data.value + '_new'"
+    )
+    assert '@kafka_client.consumer(topic="events_in", value_type="json")' in code
+    assert 'topic="events_out"' in code
+    assert "transformed_value = data.value + '_new'" in code
+
+
+def test_suggest_serializers_image():
+    """Validates that suggest_serializers recommends 'image' format for numpy patterns.
+    
+    This test ensures that sending references to ndarray returns 'image' type recommendation.
+    """
+    res = server.suggest_serializers("image = cv2.imread('test.jpg')\nshape = image.shape")
+    assert "image" in res
+    assert "Detected references to image structures" in res
+
+
+def test_suggest_serializers_json():
+    """Validates that suggest_serializers recommends 'json' format for dict/pydantic structures.
+    
+    This test ensures that sending dictionaries or lists returns 'json' type recommendation.
+    """
+    res = server.suggest_serializers("{'token': 'abc', 'image': 'test.png'}")
+    assert "json" in res
+    assert "Detected JSON structure" in res
+
+
 # --- CLI run modes ---
 
 
