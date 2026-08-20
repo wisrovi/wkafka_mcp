@@ -30,15 +30,17 @@ class TemplateGenerator:
         return ["config", "models", "consumers", "producers", "tests", ".wkafka"]
 
     @staticmethod
-    def get_files_blueprint(scaffold_type: str, project_name: str = "wkafka_project") -> dict:
+    def get_files_blueprint(
+        scaffold_type: str, project_name: str = "wkafka_project"
+    ) -> dict:
         """Return filenames and their professional template content."""
         settings_template = (
             "import os\n\n"
             "# Centralized Kafka connection settings (wisrovi standard).\n"
             "# Prefer environment variables for all credentials.\n\n"
-            "BOOTSTRAP_SERVERS = os.getenv(\"KAFKA_SERVER\", \"localhost:9092\")\n"
-            "CLIENT_ID = os.getenv(\"KAFKA_CLIENT_ID\", \"wkafka-service\")\n"
-            "ACKS = int(os.getenv(\"KAFKA_ACKS\", \"1\"))\n\n"
+            'BOOTSTRAP_SERVERS = os.getenv("KAFKA_SERVER", "localhost:9092")\n'
+            'CLIENT_ID = os.getenv("KAFKA_CLIENT_ID", "wkafka-service")\n'
+            'ACKS = int(os.getenv("KAFKA_ACKS", "1"))\n\n'
             "# Security (SASL/SSL) - leave empty for plain local development.\n"
             'SECURITY_PROTOCOL = os.getenv("KAFKA_SECURITY_PROTOCOL")\n'
             'SASL_MECHANISM = os.getenv("KAFKA_SASL_MECHANISM")\n'
@@ -57,7 +59,7 @@ class TemplateGenerator:
 
         producer_template = (
             "from wkafka import WKafka\n"
-            "from wkafka_mcp_config import ACKS, BOOTSTRAP_SERVERS, CLIENT_ID, SASL_MECHANISM, SASL_PASSWORD, SASL_USERNAME, SECURITY_PROTOCOL\n\n"
+            "from config.settings import ACKS, BOOTSTRAP_SERVERS, CLIENT_ID, SASL_MECHANISM, SASL_PASSWORD, SASL_USERNAME, SECURITY_PROTOCOL\n\n"
             "# Build the WKafka orchestrator. Extra kwargs are forwarded to kafka-python.\n"
             "extra = {}\n"
             "if SECURITY_PROTOCOL:\n"
@@ -75,13 +77,13 @@ class TemplateGenerator:
 
         consumer_template = (
             "from wkafka import WKafka\n"
-            "from wkafka_mcp_config import BOOTSTRAP_SERVERS, CLIENT_ID\n\n"
+            "from config.settings import BOOTSTRAP_SERVERS, CLIENT_ID\n\n"
             "kafka = WKafka(bootstrap_servers=BOOTSTRAP_SERVERS, client_id=CLIENT_ID)\n\n"
             '@kafka.consumer(topic="orders", format="json", auto_offset_reset="earliest")\n'
             "def handle_order(msg):\n"
             '    print(f"New order: {msg.value} (offset {msg.offset})")\n'
-            "    # return {\"exit\": True}  # graceful stop after processing\n\n"
-            "if __name__ == \"__main__\":\n"
+            '    # return {"exit": True}  # graceful stop after processing\n\n'
+            'if __name__ == "__main__":\n'
             "    kafka.run_consumers(block=True)\n"
         )
 
@@ -100,11 +102,11 @@ class TemplateGenerator:
         blueprint = {
             "main.py": (
                 "from wkafka import WKafka\n"
-                "from wkafka_mcp_config import BOOTSTRAP_SERVERS, CLIENT_ID\n\n"
+                "from config.settings import BOOTSTRAP_SERVERS, CLIENT_ID\n\n"
                 "kafka = WKafka(bootstrap_servers=BOOTSTRAP_SERVERS, client_id=CLIENT_ID)\n\n\n"
                 "def main():\n"
-                "    \"\"\"Service entrypoint: register consumers and run.\"\"\"\n"
-                "    print(f\"{CLIENT_ID} running. Press Ctrl+C to stop.\")\n"
+                '    """Service entrypoint: register consumers and run."""\n'
+                '    print(f"{CLIENT_ID} running. Press Ctrl+C to stop.")\n'
                 "    # Import consumers so decorators register them.\n"
                 "    import consumers  # noqa: F401\n"
                 "    kafka.run_consumers(block=True)\n\n\n"
@@ -154,7 +156,42 @@ class TemplateGenerator:
                         '@kafka.consumer(topic="camera-frames", format="image")\n'
                         "def handle_frame(msg):\n"
                         "    # msg.value is a numpy.ndarray (BGR frame)\n"
-                        "    print(f\"Frame received, shape={msg.value.shape}\")\n"
+                        '    print(f"Frame received, shape={msg.value.shape}")\n'
+                    ),
+                }
+            )
+
+        if scaffold_type == "full_service":
+            blueprint.update(
+                {
+                    "serializers/custom_serializer.py": (
+                        "from wkafka.serializers.base import Serializer\n\n"
+                        "class CustomSerializer(Serializer):\n"
+                        "    def serialize(self, value, **kwargs):\n"
+                        "        return str(value).encode('utf-8')\n\n"
+                        "    def deserialize(self, value, **kwargs):\n"
+                        "        return value.decode('utf-8')\n"
+                    ),
+                    "scripts/run_tests.sh": (
+                        "#!/bin/bash\n"
+                        "pytest tests/\n"
+                    ),
+                    ".github/workflows/ci.yml": (
+                        "name: CI\n"
+                        "on: [push, pull_request]\n"
+                        "jobs:\n"
+                        "  test:\n"
+                        "    runs-on: ubuntu-latest\n"
+                        "    steps:\n"
+                        "      - uses: actions/checkout@v4\n"
+                        "      - name: Set up Python\n"
+                        "        uses: actions/setup-python@v5\n"
+                        "        with:\n"
+                        "          python-version: '3.13'\n"
+                        "      - name: Install dependencies\n"
+                        "        run: pip install pytest wkafka\n"
+                        "      - name: Run tests\n"
+                        "        run: pytest tests/\n"
                     ),
                 }
             )
