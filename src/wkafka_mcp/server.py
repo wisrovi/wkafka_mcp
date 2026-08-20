@@ -633,6 +633,86 @@ def generate_wkafka_tests(source_code: str) -> str:
     return test_code
 
 
+@mcp.tool()
+def chain_topics_pipeline(
+    source_topic: str,
+    target_topic: str,
+    value_type: str = "json",
+    transform_logic: str = None,
+) -> str:
+    """Generates code to chain two topics together: consumes from source_topic, transforms, and produces to target_topic.
+
+    Args:
+        source_topic: The topic to consume messages from.
+        target_topic: The topic where transformed messages will be produced.
+        value_type: The serialization format (json, image, or file).
+        transform_logic: Optional Python code snippet describing the transformation logic.
+    """
+    logic = transform_logic or "transformed_value = data.value"
+    indented_logic = ""
+    for line in logic.splitlines():
+        if line.strip():
+            indented_logic += "        " + line + "\n"
+        else:
+            indented_logic += "\n"
+
+    code = (
+        "from wkafka.controller import Wkafka\n\n"
+        "kafka_client = Wkafka(server=\"localhost:9092\", name=\"pipeline_chain\")\n\n"
+        f"@kafka_client.consumer(topic=\"{source_topic}\", value_type=\"{value_type}\")\n"
+        "def pipeline_worker(data):\n"
+        "    \"\"\"Consumes messages, transforms them, and forwards them to target_topic.\"\"\"\n"
+        "    try:\n"
+        f"{indented_logic}\n"
+        "        with kafka_client.producer() as producer:\n"
+        f"            producer.send(\n"
+        f"                topic=\"{target_topic}\",\n"
+        "                value=transformed_value,\n"
+        f"                value_type=\"{value_type}\",\n"
+        "                headers=data.headers\n"
+        "            )\n"
+        "    except Exception as e:\n"
+        "        print(f\"Error processing pipeline frame: {e}\")\n\n"
+        "if __name__ == \"__main__\":\n"
+        "    print(\"Starting pipeline chain worker...\")\n"
+        "    kafka_client.run_consumers()\n"
+    )
+    return code
+
+
+@mcp.tool()
+def suggest_serializers(sample_data: str) -> str:
+    """Analyzes sample data representation to recommend the most efficient WKafka serialization type.
+
+    Args:
+        sample_data: A string representation of the data payload (e.g., JSON sample, numpy shape, raw text).
+    """
+    sample = sample_data.strip()
+
+    if any(x in sample for x in ("ndarray", "shape=", "cv2.", "imread", "img", "Image", "image/")):
+        recommendation = "image"
+        reason = "Detected references to image structures (ndarray, shape, or graphics libraries). Use value_type='image' for high-performance JPEG-encoded binary transmission."
+        example_producer = "producer.send(topic, value=image_numpy_array, value_type='image')"
+        example_consumer = "im0 = data.value  # returns BGR numpy array"
+    elif sample.startswith("{") or sample.startswith("[") or "class " in sample or "BaseModel" in sample:
+        recommendation = "json"
+        reason = "Detected JSON structure, dict, list, or Pydantic model representation. Use value_type='json' to serialize complex data structures safely."
+        example_producer = "producer.send(topic, value=dict_or_model, value_type='json')"
+        example_consumer = "payload = data.value  # returns deserialized dict"
+    else:
+        recommendation = "file"
+        reason = "Detected plain text or unstructured binary data. Use value_type='file' for raw transmission of standard disk files or payload byte arrays."
+        example_producer = "producer.send(topic, value='path/to/file.ext', value_type='file')"
+        example_consumer = "data_bytes = data.value  # returns raw file bytes"
+
+    return (
+        f"💡 Recommendation: '{recommendation}'\n"
+        f"📌 Reason: {reason}\n\n"
+        f"⌨️ Example Producer:\n{example_producer}\n\n"
+        f"⌨️ Example Consumer:\n{example_consumer}\n"
+    )
+
+
 # --- CLI Actions ---
 
 
