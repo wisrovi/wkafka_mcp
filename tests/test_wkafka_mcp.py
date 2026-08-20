@@ -468,6 +468,51 @@ def test_suggest_serializers_json():
     assert "Detected JSON structure" in res
 
 
+def test_generate_mcp_client_config():
+    """Validates that generate_mcp_client_config returns proper JSON blocks for cursor and opencode.
+    
+    This test verifies that setup paths and CLI strings are correctly formatted.
+    """
+    cursor_res = server.generate_mcp_client_config("cursor")
+    assert "Cursor Setup JSON:" in cursor_res
+    assert "wkafka-mcp" in cursor_res
+
+    opencode_res = server.generate_mcp_client_config("opencode")
+    assert "OpenCode Config JSONC Snippet:" in opencode_res
+    assert "type" in opencode_res
+
+    bad_res = server.generate_mcp_client_config("unknown")
+    assert "Unknown agent client type" in bad_res
+
+
+def test_check_schema_compatibility_detects_breaks():
+    """Validates that check_schema_compatibility detects backward compatibility breaking changes.
+    
+    This test verifies that deleting fields or adding required fields reports compatibility errors.
+    """
+    orig = "class User:\n    id: int\n    name: str\n"
+    new_deleted = "class User:\n    id: int\n"
+    res1 = server.check_schema_compatibility(orig, new_deleted)
+    assert "compatibility broken" in res1
+    assert "Field 'name' was deleted" in res1
+
+    new_required = "class User:\n    id: int\n    name: str\n    email: str\n"
+    res2 = server.check_schema_compatibility(orig, new_required)
+    assert "compatibility broken" in res2
+    assert "field 'email' is marked as required" in res2
+
+
+def test_check_schema_compatibility_ok():
+    """Validates that check_schema_compatibility returns success when changes are backward compatible.
+    
+    This test verifies that adding default fields returns a success check.
+    """
+    orig = "class User:\n    id: int\n    name: str\n"
+    new_ok = "class User:\n    id: int\n    name: str\n    email: Optional[str] = None\n"
+    res = server.check_schema_compatibility(orig, new_ok)
+    assert "backward-compatible" in res
+
+
 # --- CLI run modes ---
 
 
