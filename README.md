@@ -101,15 +101,35 @@ The server exposes the following MCP tools to your agent:
 
 ## 💡 MCP Usage Examples
 
-Here are some typical requests you can make to your AI assistant:
+Here are some typical requests you can make to your AI assistant to leverage this MCP server's full capabilities:
 
 ### Example 1: Create a basic consumer
-**User request:** *"Crea un consumidor de kafka para el topico orders_stream"*
-* **Agent action:** The agent will ask clarifying questions about whether the payload is JSON or an image, and if a `group_id` is required. Then it will call `generate_wkafka_consumer`.
+* **User request:** *"Crea un consumidor de kafka para el topico orders_stream"*
+* **Agent action:** The agent asks whether the payload is JSON or an image, and if a custom `group_id` is required. Then it calls `generate_wkafka_consumer` and outputs the callback code structure.
 
 ### Example 2: Adapt an existing script to run as a trigger
-**User request:** *"Toma este script.py y adaptalo para que la funcion prueba1() se lance por trigger de kafka en el topico orders"*
-* **Agent action:** The agent will call `adapt_code_to_wkafka`, automatically wrapping the execution logic inside the callback so `prueba1(data)` receives the message payload upon event ingestion.
+* **User request:** *"Toma este script.py y adaptalo para que la funcion prueba1() se lance por trigger de kafka en el topico orders"*
+* **Agent action:** The agent calls `adapt_code_to_wkafka`, automatically appending the execution logic inside the callback wrapper so `prueba1(data)` receives the message payload upon event ingestion.
+
+### Example 3: Create a secure SASL producer
+* **User request:** *"Haz un productor seguro para enviar eventos de autenticacion a secure_events con SASL"*
+* **Agent action:** The agent retrieves SASL blueprint configurations from `get_wkafka_architect_blueprints` and writes a producer utilizing `WKafka` along with standard PLAIN/SCRAM security credentials.
+
+### Example 4: Chain two topics in a streaming pipeline
+* **User request:** *"Crea un pipeline que reciba de raw_events, filtre los que tengan status 'active', y los envie a clean_events"*
+* **Agent action:** The agent calls `chain_topics_pipeline` with the appropriate transformation filter, generating a pipeline worker code utilizing the context manager producer inside the consumer callback.
+
+### Example 5: Ask for serialization recommendations
+* **User request:** *"Qué serializacion debo usar si tengo este modelo de Pydantic: class User(BaseModel): id: int, name: str"*
+* **Agent action:** The agent calls `suggest_serializers` passing the data structure representation, and returns the recommendation (JSON) along with producer/consumer snippets.
+
+### Example 6: Audit and lint WKafka code
+* **User request:** *"Audita este codigo y dime si sigue las buenas practicas: [pega codigo]"*
+* **Agent action:** The agent calls `lint_wkafka_code`, checking for direct vs controller imports, raw producer connection leaks, and mixed serialization parameter names.
+
+### Example 7: Generate a unit test suite for a consumer
+* **User request:** *"Genera los tests unitarios para mi consumidor process_video"*
+* **Agent action:** The agent calls `generate_wkafka_tests` to build a mock-ready `pytest` file with stubs representing the `Message` class and event loop triggers.
 
 ### 💬 Interactive Questions Flow
 When requesting new consumer configurations, the assistant will automatically present you with options to select:
