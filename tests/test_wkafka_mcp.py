@@ -290,6 +290,71 @@ def test_validate_kafka_config_ok():
     assert "validated successfully" in text
 
 
+# --- consumer and producer generators ---
+
+
+def test_generate_wkafka_consumer_returns_code():
+    """Validates that generate_wkafka_consumer returns valid consumer python code structure.
+    
+    This test verifies that the generated code:
+    1. Contains the subscriber decorator on the correct topic.
+    2. Imports the correct config module.
+    """
+    code = server.generate_wkafka_consumer("orders-topic", format="json", key_filter="order-key")
+    assert "orders-topic" in code
+    assert "json" in code
+    assert "key_filter=\"order-key\"" in code
+    assert "from config.settings import" in code
+
+
+def test_generate_wkafka_consumer_writes_file(tmp_path):
+    """Validates that generate_wkafka_consumer saves the code into a file if target_file is absolute.
+    
+    This test verifies that the file is created at the absolute path and has correct content.
+    """
+    target = str(tmp_path / "my_consumer.py")
+    res = server.generate_wkafka_consumer("orders-topic", target_file=target)
+    assert res.startswith("Success:")
+    assert (tmp_path / "my_consumer.py").exists()
+    content = (tmp_path / "my_consumer.py").read_text()
+    assert "orders-topic" in content
+
+
+def test_generate_wkafka_consumer_rejects_relative_path():
+    """Validates that generate_wkafka_consumer rejects relative target paths.
+    
+    This test verifies that using a relative path returns an error message starting with 'Error:'.
+    """
+    res = server.generate_wkafka_consumer("orders-topic", target_file="rel/path.py")
+    assert res.startswith("Error:")
+
+
+def test_generate_wkafka_producer_returns_code():
+    """Validates that generate_wkafka_producer returns valid producer python code structure.
+    
+    This test verifies that the generated code:
+    1. Contains send() syntax with the targeted topic.
+    2. Imports the correct config module.
+    """
+    code = server.generate_wkafka_producer("orders-topic", format="yaml")
+    assert "orders-topic" in code
+    assert "yaml" in code
+    assert "from config.settings import" in code
+
+
+def test_generate_wkafka_producer_writes_file(tmp_path):
+    """Validates that generate_wkafka_producer saves the code into a file if target_file is absolute.
+    
+    This test verifies that the file is created at the absolute path and has correct content.
+    """
+    target = str(tmp_path / "my_producer.py")
+    res = server.generate_wkafka_producer("orders-topic", target_file=target)
+    assert res.startswith("Success:")
+    assert (tmp_path / "my_producer.py").exists()
+    content = (tmp_path / "my_producer.py").read_text()
+    assert "orders-topic" in content
+
+
 # --- CLI run modes ---
 
 
