@@ -360,18 +360,35 @@ def test_adapt_code_to_wkafka_generates_correct_wrapper():
     
     This test verifies that:
     1. The resulting code imports `Wkafka`.
-    2. The decorator matches the specified topic and value_type.
+    2. The decorator matches the specified topic, value_type, and group_id.
     3. The user logic is correctly indented inside the handler function.
     """
     user_logic = "print('analyzing data')\nresult = 42\n"
     code = server.adapt_code_to_wkafka(
-        user_logic, topic="data_stream", value_type="json"
+        user_logic, topic="data_stream", value_type="json", group_id="my-group"
     )
     assert "from wkafka.controller import Wkafka" in code
-    assert '@kafka_client.consumer(topic="data_stream", value_type="json")' in code
+    assert '@kafka_client.consumer(topic="data_stream", value_type="json", group_id="my-group")' in code
     assert "    print('analyzing data')" in code
     assert "    result = 42" in code
     assert "kafka_client.run_consumers()" in code
+
+
+def test_adapt_code_to_wkafka_detects_main_function():
+    """Validates that adapt_code_to_wkafka routes messages to main() if it exists.
+    
+    This test verifies that:
+    1. The main() function definition is preserved.
+    2. A consumer function kafka_trigger is generated to invoke main(data).
+    """
+    user_logic = "def main(data):\n    print(data.value)\n"
+    code = server.adapt_code_to_wkafka(
+        user_logic, topic="my_topic", value_type="json"
+    )
+    assert "def main(data):" in code
+    assert "def kafka_trigger(data):" in code
+    assert "    main(data)" in code
+    assert '@kafka_client.consumer(topic="my_topic", value_type="json")' in code
 
 
 # --- CLI run modes ---
