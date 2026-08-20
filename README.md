@@ -1,50 +1,123 @@
-# wkafka-mcp
+# 🔌 WKafka Model Context Protocol (MCP) Server
 
-Model Context Protocol (MCP) server for architecting and deploying WKafka-based microservices according to the wisrovi standards.
+[![PyPI Version](https://img.shields.io/pypi/v/wkafka-mcp?color=blue)](https://pypi.org/project/wkafka-mcp/)
+[![Python Version](https://img.shields.io/pypi/pyversions/wkafka-mcp)](https://pypi.org/project/wkafka-mcp/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Technologies and Libraries Used
+An advanced Model Context Protocol (MCP) server designed to enable AI coding assistants (like Gemini, Claude, Cursor, OpenCode, and Antigravity) to design, build, test, and adapt high-performance event-driven microservices based on **WKafka** (the standard Kafka orchestrator suite).
 
-- **Python (>=3.10)**: The core programming language.
-- **FastMCP**: Python framework for building Model Context Protocol servers rapidly.
-- **MCP CLI/SDK**: Standard protocol implementations to allow integration with AI agents like Claude Desktop, Cursor, OpenCode, and Antigravity.
-- **Pydantic (v2)**: Data validation and settings/schema definitions.
-- **Pytest & Pytest-Cov**: Testing framework and code coverage analyzer.
-- **Docker**: For running isolated test suites.
+---
 
-## How to Run Tests
+## 🎯 Why This MCP Server Exists
 
-### Standard Mode
-To run tests locally, install dev dependencies and execute `pytest`:
+Building streaming pipelines and microservices with Kafka often requires complex configuration, custom serialization patterns, error-handling logic, and safety contexts (like SASL and SSL). 
+
+This MCP server acts as an **expert assistant interface** for AI agents. It equips them with the tools and domain-specific knowledge to:
+1. **Instantly Scaffold** production-ready Kafka services adhering to strict architectural structures.
+2. **Generate clean code** for JSON, raw images, and video stream consumers and producers.
+3. **Adapt existing scripts** automatically to run under Kafka message triggers.
+4. **Validate Kafka connection configs** to prevent hardcoded credentials or missing settings.
+
+---
+
+## 🛠️ Technologies and Ecosytem Libraries Used
+
+This component is built using the following core technologies:
+
+* **Python (>=3.10)**: Core programming language.
+- **FastMCP**: High-productivity framework for building Model Context Protocol servers in Python.
+- **MCP CLI/SDK**: Protocol implementations supporting integration with AI environments.
+- **Pydantic (v2)**: Advanced data validation and settings schema definitions.
+- **Pytest & Pytest-Cov**: Testing framework and coverage reports.
+- **Docker**: For sandboxed unit test execution.
+
+---
+
+## 🚀 Installation & Setup
+
+### 1. Install the Package
+Install `wkafka-mcp` via PyPI:
 ```bash
-pip install -e .[dev]
-pytest tests/
+pip install wkafka-mcp
 ```
 
-### Coverage Analysis
-To run tests and calculate code coverage, execute the provided script:
+### 2. Configure in your AI Agent Config
+
+#### OpenCode Configuration
+Add to your `~/.config/opencode/opencode.jsonc` inside the `"mcp"` block:
+```jsonc
+    "wkafka-mcp": {
+      "type": "local",
+      "command": [
+        "python",
+        "-m",
+        "wkafka_mcp.server",
+        "run"
+      ],
+      "enabled": true
+    }
+```
+
+#### Antigravity (agy) / Gemini CLI Configuration
+Add to your global `~/.gemini/antigravity/mcp_config.json`:
+```json
+{
+  "mcpServers": {
+    "wkafka-mcp": {
+      "command": "python",
+      "args": [
+        "-m",
+        "wkafka_mcp.server",
+        "run"
+      ]
+    }
+  }
+}
+```
+
+---
+
+## ⚙️ Detailed MCP Tools List
+
+The server exposes the following MCP tools to your agent:
+
+| Tool Name | Arguments | Description |
+| :--- | :--- | :--- |
+| `get_wkafka_architect_blueprints` | None | Returns production-ready consumer and producer patterns (JSON, images, video streaming, and SASL configuration). |
+| `get_wkafka_architect_manual` | None | Returns the master manual covering project structure rules, module map, and monolith refactoring steps. |
+| `search_wkafka_pattern` | `query: str` | Searches the catalog database for specific streaming patterns. |
+| `deploy_wkafka_scaffolding` | `target_dir: str`, `project_name: str`, `scaffold_type: str` | Deploys a complete directory structure matching the requested scaffold (`standard`, `vision_pipeline`, or `full_service`). |
+| `generate_from_pattern` | `pattern_name: str`, `target_dir: str` | Generates a project tailored from a specific catalog pattern name. |
+| `validate_kafka_config` | `config_code: str` | Scans a configuration snippet for missing credentials or unsafe defaults. |
+| `generate_wkafka_consumer` | `topic: str`, `format: str`, `key_filter: str`, `target_file: str` | Generates a custom worker trigger template. |
+| `generate_wkafka_producer` | `topic: str`, `format: str`, `target_file: str` | Generates a custom producer message dispatcher template. |
+| `adapt_code_to_wkafka` | `source_code: str`, `topic: str`, `value_type: str`, `group_id: str` | Automatically wraps any Python script (with or without `main()`) inside a WKafka consumer trigger. |
+
+---
+
+## 🧪 Running the Tests
+
+To ensure code stability and API contracts are preserved, a comprehensive unit test suite is included.
+
+### Run Locally (pytest)
+```bash
+# Install development dependencies
+make install
+
+# Execute the test suite
+make test
+```
+
+### Coverage Reports
+To run the tests and calculate code coverage, execute the provided script:
 ```bash
 ./run_coverage.sh
 ```
 
-### Docker (Isolated Testing)
-To execute the tests within a completely isolated Docker container:
+### Sandboxed Testing with Docker
+To run the test suite in an isolated Python 3.13 environment container (independent of local packages):
 ```bash
 ./run_tests_docker.sh
-```
-
-## Code Generation Tools
-
-This MCP server provides targeted tools to generate consumer and producer code immediately:
-- `generate_wkafka_consumer`: Generates fully working consumer callback setups with serialization selection (`json`, `yaml`, `image`) and optional topic key filtering.
-- `generate_wkafka_producer`: Generates safe producer code utilizing the context manager pattern to ensure reliable event delivery.
-
-Both tools support outputting code directly to an absolute target file path.
-
-## How to Run the MCP Server
-
-```bash
-# Run in default stdio mode
-python -m wkafka_mcp.server run
 ```
 
 ---
