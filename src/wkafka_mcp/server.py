@@ -37,114 +37,110 @@ def get_catalog() -> PatternsCatalog:
 def get_wkafka_architect_blueprints() -> str:
     """Complete reference with production-ready WKafka patterns and examples."""
     basic_code = (
-        "from wkafka import WKafka\n"
+        "from wkafka.controller import Wkafka\n"
         "\n"
-        'kafka = WKafka(bootstrap_servers="localhost:9092")\n'
+        'kafka_client = Wkafka(server="localhost:9092", name="basic")\n'
         "\n"
-        '@kafka.consumer(topic="orders", format="json")\n'
-        "def handle_order(msg):\n"
-        '    print(f"New order: {msg.value}")\n'
+        '@kafka_client.consumer(topic="json_topic", value_type="json")\n'
+        "def process_json(data):\n"
+        '    print("Processing JSON data:", data.value)\n'
         "\n"
-        "kafka.run_consumers(block=True)\n"
-        "\n"
-        "with kafka.producer() as p:\n"
-        '    p.send("orders", value={"id": 123}, key="order-123", format="json")\n'
+        "kafka_client.run_consumers()\n"
     )
 
     image_code = (
         "import cv2\n"
-        "from wkafka import WKafka\n"
-        "from wkafka.serializers import ImageSerializer\n"
+        "from wkafka.controller import Wkafka\n"
         "\n"
-        "kafka = WKafka()\n"
-        "serializer = ImageSerializer()\n"
+        'kafka_client = Wkafka(server="localhost:9092", name="image_show")\n'
         "\n"
-        '@kafka.consumer(topic="camera-frames", format="image")\n'
-        "def handle_frame(msg):\n"
-        "    # msg.value is a numpy.ndarray (BGR frame)\n"
-        '    cv2.imshow("frame", msg.value)\n'
+        '@kafka_client.consumer(topic="image_topic", value_type="image")\n'
+        "def display_image(data):\n"
+        '    cv2.imshow("Received Image", data.value)\n'
+        "    cv2.waitKey(0)\n"
+        "    cv2.destroyAllWindows()\n"
         "\n"
-        "with kafka.producer() as p:\n"
-        '    frame = cv2.imread("image.jpg")\n'
-        '    p.send("camera-frames", value=frame, format="image", quality=85)\n'
+        "kafka_client.run_consumers()\n"
     )
 
-    yaml_code = (
-        "from wkafka import WKafka\n"
+    video_code = (
+        "import cv2\n"
+        "from wkafka.controller import Wkafka\n"
         "\n"
-        "kafka = WKafka()\n"
+        'kafka_client = Wkafka(server="localhost:9092", name="video_show")\n'
         "\n"
-        '@kafka.consumer(topic="config-updates", format="yaml")\n'
-        "def handle_config(msg):\n"
-        '    print(f"Applied config: {msg.value}")\n'
+        '@kafka_client.consumer(topic="video_topic", value_type="image")\n'
+        "def stream_video(data):\n"
+        "    DREAM_WIDTH = 600\n"
+        "    im0 = data.value\n"
+        "    header = data.header\n"
+        '\n'
+        '    frame_width = header.get("frame_width")\n'
+        '    frame_height = header.get("frame_height")\n'
+        '\n'
+        '    new_size = DREAM_WIDTH / frame_width\n'
+        '    im0 = cv2.resize(im0, (int(frame_width * new_size), int(frame_height * new_size)))\n'
+        '\n'
+        '    cv2.imshow("Video Received", im0)\n'
+        '    if cv2.waitKey(1) & 0xFF == ord("q"):\n'
+        '        return\n'
+        '\n'
+        '    if header.get("frame_id") == (header.get("total_frames") - 1):\n'
+        '        cv2.destroyAllWindows()\n'
         "\n"
-        "with kafka.producer() as p:\n"
-        '    p.send("config-updates", value={"feature": "dark_mode", "enabled": True}, format="yaml")\n'
+        "kafka_client.run_consumers()\n"
     )
 
-    sasl_code = (
-        "from wkafka import WKafka\n"
+    producer_json = (
+        "from wkafka.controller import Wkafka\n"
         "\n"
-        "kafka = WKafka(\n"
-        '    bootstrap_servers="my-broker:9092",\n'
-        '    security_protocol="SASL_PLAINTEXT",\n'
-        '    sasl_mechanism="SCRAM-SHA-512",\n'
-        '    sasl_plain_username="admin",\n'
-        '    sasl_plain_password="password",\n'
-        ")\n"
+        'kafka_instance = Wkafka(server="192.168.1.137:9092")\n'
         "\n"
-        '@kafka.consumer(topic="secure-topic", format="json")\n'
-        "def handle_secure(msg):\n"
-        '    print(f"Secure message: {msg.value}")\n'
-    )
-
-    headers_code = (
-        "from wkafka import WKafka\n"
-        "\n"
-        "kafka = WKafka()\n"
-        "\n"
-        "with kafka.producer() as p:\n"
-        "    p.send(\n"
-        '        "orders",\n'
-        '        value={"id": 456},\n'
-        '        headers={"trace_id": "abc123", "tenant": "acme"},\n'
-        '        format="json",\n'
+        "with kafka_instance.producer() as producer:\n"
+        "    producer.send(\n"
+        '        topic="sms",\n'
+        '        value={"mensaje": "Hola Kafka!"},\n'
+        '        key="clave1",\n'
+        '        value_type="json",\n'
+        '        headers={"response_to": "send_to_docker", "id_db": "abcd_1234"},\n'
         "    )\n"
     )
 
-    keyfilter_code = (
-        "from wkafka import WKafka\n"
+    producer_image = (
+        "import cv2\n"
+        "from wkafka.controller import Wkafka\n"
         "\n"
-        "kafka = WKafka()\n"
+        'kafka_instance = Wkafka(server="192.168.1.60:9092")\n'
         "\n"
-        '@kafka.consumer(topic="events", key_filter="payments", format="json")\n'
-        "def handle_payments(msg):\n"
-        '    # Only messages with key == "payments" reach this handler\n'
-        '    print(f"Payment: {msg.value}")\n'
-    )
-
-    legacy_code = (
-        "from wkafka.controller.wkafka import Wkafka\n"
+        "with kafka_instance.producer() as kf_producer:\n"
+        '    image = cv2.imread("dog.jpg")\n'
+        "    frame_height, frame_width, _ = image.shape\n"
         "\n"
-        "# Legacy-compatible bridge: server/name/retry_delay/max_retries\n"
-        'kafka = Wkafka(server="localhost:9092", name="legacy-app", max_retries=3)\n'
-        "\n"
-        '@kafka.consumer(topic="orders", value_type="json")\n'
-        "def handle(msg):\n"
-        '    print(f"Received: {msg.value}")\n'
-        "\n"
-        'kafka.send("orders", value={"id": 1}, key="k1")\n'
+        "    kf_producer.send(\n"
+        '        topic="image",\n'
+        "        value=image,\n"
+        '        key="image",\n'
+        '        value_type="image",\n'
+        "        headers={\n"
+        '            "status": True,\n'
+        '            "value": 12345,\n'
+        '            "correlation_id": "12345",\n'
+        '            "source": "service_A",\n'
+        '            "destination": "service_B",\n'
+        '            "content_type": "image/jpeg",\n'
+        '            "frame_width": frame_width,\n'
+        '            "frame_height": frame_height\n'
+        "        },\n"
+        "    )\n"
     )
 
     return (
         "WKAFKA EXPERT BLUEPRINTS (PRODUCTION REFERENCE - READ/WRITE FOR EVERY SERIALIZATION)\n\n"
-        "=== 1. BASIC JSON PRODUCER/CONSUMER ===\n" + basic_code + "\n"
-        "=== 2. IMAGE / VISION PIPELINE ===\n" + image_code + "\n"
-        "=== 3. YAML CONFIGURATION ===\n" + yaml_code + "\n"
-        "=== 4. SASL AUTHENTICATION ===\n" + sasl_code + "\n"
-        "=== 5. HEADERS (METADATA / TRACING) ===\n" + headers_code + "\n"
-        "=== 6. KEY FILTERED CONSUMPTION ===\n" + keyfilter_code + "\n"
-        "=== 7. LEGACY CONTROLLER BRIDGE ===\n" + legacy_code
+        "=== 1. BASIC JSON CONSUMER ===\n" + basic_code + "\n"
+        "=== 2. IMAGE CONSUMER ===\n" + image_code + "\n"
+        "=== 3. VIDEO FRAME STREAM CONSUMER ===\n" + video_code + "\n"
+        "=== 4. SEND JSON PRODUCER ===\n" + producer_json + "\n"
+        "=== 5. SEND IMAGE PRODUCER ===\n" + producer_image
     )
 
 
