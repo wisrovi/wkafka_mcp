@@ -94,6 +94,28 @@ The server exposes the following MCP tools to your agent:
 | `generate_wkafka_consumer` | `topic: str`, `format: str`, `key_filter: str`, `target_file: str` | Generates a custom worker trigger template. |
 | `generate_wkafka_producer` | `topic: str`, `format: str`, `target_file: str` | Generates a custom producer message dispatcher template. |
 | `adapt_code_to_wkafka` | `source_code: str`, `topic: str`, `value_type: str`, `group_id: str` | Automatically wraps any Python script (with or without `main()`) inside a WKafka consumer trigger. |
+| `chain_topics_pipeline` | `source_topic: str`, `target_topic: str`, `value_type: str`, `transform_logic: str` | Generates a pipeline worker that links a consumer from source_topic to a producer forwarding to target_topic. |
+| `suggest_serializers` | `sample_data: str` | Analyzes raw data payload structures to suggest the optimal serialization type. |
+
+---
+
+## 💡 MCP Usage Examples
+
+Here are some typical requests you can make to your AI assistant:
+
+### Example 1: Create a basic consumer
+**User request:** *"Crea un consumidor de kafka para el topico orders_stream"*
+* **Agent action:** The agent will ask clarifying questions about whether the payload is JSON or an image, and if a `group_id` is required. Then it will call `generate_wkafka_consumer`.
+
+### Example 2: Adapt an existing script to run as a trigger
+**User request:** *"Toma este script.py y adaptalo para que la funcion prueba1() se lance por trigger de kafka en el topico orders"*
+* **Agent action:** The agent will call `adapt_code_to_wkafka`, automatically wrapping the execution logic inside the callback so `prueba1(data)` receives the message payload upon event ingestion.
+
+### 💬 Interactive Questions Flow
+When requesting new consumer configurations, the assistant will automatically present you with options to select:
+1. **Payload Type:** JSON (Structured data/dict) vs Image (cv2 frames) vs Video streams.
+2. **Security:** Plain local configuration vs SASL Authenticated context.
+3. **Consumer Group:** Optional choice to specify a custom `group_id` or default to dynamic group generators.
 
 ---
 
