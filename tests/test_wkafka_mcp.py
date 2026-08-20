@@ -391,6 +391,45 @@ def test_adapt_code_to_wkafka_detects_main_function():
     assert '@kafka_client.consumer(topic="my_topic", value_type="json")' in code
 
 
+def test_lint_wkafka_code_finds_issues():
+    """Validates that lint_wkafka_code identifies common errors and recommendations.
+    
+    This test verifies that:
+    1. Direct imports of WKafka trigger a notice.
+    2. Missing run_consumers triggers a warning.
+    3. Unsafe raw producer creation triggers a warning.
+    """
+    bad_code = "from wkafka import WKafka\nkafka = WKafka()\np = kafka.producer()\n@kafka.consumer(topic='x')\ndef test(): pass"
+    res = server.lint_wkafka_code(bad_code)
+    assert "Notice:" in res
+    assert "Warning: Registered consumers found" in res
+    assert "Warning: A producer instance is created but not wrapped in a context manager" in res
+
+
+def test_lint_wkafka_code_ok():
+    """Validates that lint_wkafka_code returns success when no issues exist.
+    
+    This test verifies that a well-designed Wkafka client returns a success check.
+    """
+    good_code = "from wkafka.controller import Wkafka\nkafka = Wkafka()\nwith kafka.producer() as p:\n    p.send('topic', value={}, value_type='json')"
+    res = server.lint_wkafka_code(good_code)
+    assert "✅" in res
+
+
+def test_generate_wkafka_tests_creates_mock_template():
+    """Validates that generate_wkafka_tests yields a functional pytest file template.
+    
+    This test ensures that:
+    1. The generated code imports pytest and mock.
+    2. The test callback targets the mock message value.
+    """
+    sample_code = "from wkafka.controller import Wkafka\nkafka = Wkafka()\n@kafka.consumer(topic='orders', value_type='json')\ndef process_order(data): pass"
+    test_result = server.generate_wkafka_tests(sample_code)
+    assert "import pytest" in test_result
+    assert "def test_process_order_execution():" in test_result
+    assert "dummy_payload = {'test': 'data'}" in test_result
+
+
 # --- CLI run modes ---
 
 
