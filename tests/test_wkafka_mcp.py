@@ -106,18 +106,16 @@ def test_blueprints_contains_all_sections():
     """Validates the output of get_wkafka_architect_blueprints.
     
     This test ensures that the blueprint reference document:
-    1. Contains all seven essential wkafka code patterns (from JSON to Legacy Bridge).
+    1. Contains all five updated controller-based wkafka code patterns.
     2. Includes the expert warning headers and required formatting keywords.
     """
     text = server.get_wkafka_architect_blueprints()
     for s in [
-        "=== 1. BASIC JSON PRODUCER/CONSUMER",
-        "=== 2. IMAGE / VISION PIPELINE",
-        "=== 3. YAML CONFIGURATION",
-        "=== 4. SASL AUTHENTICATION",
-        "=== 5. HEADERS",
-        "=== 6. KEY FILTERED CONSUMPTION",
-        "=== 7. LEGACY CONTROLLER BRIDGE",
+        "=== 1. BASIC JSON CONSUMER",
+        "=== 2. IMAGE CONSUMER",
+        "=== 3. VIDEO FRAME STREAM CONSUMER",
+        "=== 4. SEND JSON PRODUCER",
+        "=== 5. SEND IMAGE PRODUCER",
     ]:
         assert s in text
     assert "WKAFKA EXPERT BLUEPRINTS" in text
