@@ -4,6 +4,7 @@ import json
 import logging
 from contextlib import suppress
 from urllib import request
+from urllib.error import HTTPError, URLError
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +15,9 @@ class PatternsCatalog:
     Synchronizes from GitHub just like the VS Code extension (with local fallbacks).
     """
 
-    OFFICIAL_URL = "https://raw.githubusercontent.com/wisrovi/wkafka/main/patterns_catalog.json"
+    OFFICIAL_URL = (
+        "https://raw.githubusercontent.com/wisrovi/wkafka/main/patterns_catalog.json"
+    )
     COMMUNITY_URL = "https://raw.githubusercontent.com/wisrovi/wkafka-plugins/main/patterns_catalog.json"
 
     def __init__(self):
@@ -29,7 +32,7 @@ class PatternsCatalog:
             with request.urlopen(req, timeout=5) as response:
                 if response.status == 200:
                     return json.loads(response.read().decode("utf-8"))
-        except (request.URLError, request.HTTPError, TimeoutError, OSError) as e:
+        except (URLError, HTTPError, TimeoutError, OSError) as e:
             logger.warning("Failed to fetch catalog from %s: %s", url, e)
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.warning("Failed to fetch catalog from %s: %s", url, e)
@@ -50,7 +53,9 @@ class PatternsCatalog:
 
         if all_patterns:
             self.cached_patterns = all_patterns
-            logger.info("Catalog refreshed: %d patterns found.", len(self.cached_patterns))
+            logger.info(
+                "Catalog refreshed: %d patterns found.", len(self.cached_patterns)
+            )
 
         return self.cached_patterns
 
