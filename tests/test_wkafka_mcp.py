@@ -355,6 +355,25 @@ def test_generate_wkafka_producer_writes_file(tmp_path):
     assert "orders-topic" in content
 
 
+def test_adapt_code_to_wkafka_generates_correct_wrapper():
+    """Validates that adapt_code_to_wkafka wraps user logic inside a Wkafka callback.
+    
+    This test verifies that:
+    1. The resulting code imports `Wkafka`.
+    2. The decorator matches the specified topic and value_type.
+    3. The user logic is correctly indented inside the handler function.
+    """
+    user_logic = "print('analyzing data')\nresult = 42\n"
+    code = server.adapt_code_to_wkafka(
+        user_logic, topic="data_stream", value_type="json"
+    )
+    assert "from wkafka.controller import Wkafka" in code
+    assert '@kafka_client.consumer(topic="data_stream", value_type="json")' in code
+    assert "    print('analyzing data')" in code
+    assert "    result = 42" in code
+    assert "kafka_client.run_consumers()" in code
+
+
 # --- CLI run modes ---
 
 
