@@ -1,3 +1,5 @@
+<img width="1040" height="582" alt="image" src="https://github.com/user-attachments/assets/e03505ea-5bb0-4e99-b80d-c0d5c261a322" />
+
 # 🔌 WKafka Model Context Protocol (MCP) Server
 
 [![PyPI Version](https://img.shields.io/pypi/v/wkafka-mcp?color=blue)](https://pypi.org/project/wkafka-mcp/)
