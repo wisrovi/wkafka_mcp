@@ -134,13 +134,46 @@ def get_wkafka_architect_blueprints() -> str:
         "    )\n"
     )
 
+    sasl_producer = (
+        "from wkafka import WKafka\n"
+        "sasl_config = {\n"
+        '    "security_protocol": "SASL_PLAINTEXT",\n'
+        '    "sasl_mechanism": "PLAIN",\n'
+        '    "sasl_plain_username": "external-user",\n'
+        '    "sasl_plain_password": "mdL0Q9gKAANuglBV8KaGvPYS6NihQP5u"\n'
+        "}\n"
+        'kafka = WKafka(bootstrap_servers="localhost:30092", **sasl_config)\n'
+        'if __name__ == "__main__":\n'
+        "    with kafka.producer() as p:\n"
+        '        p.send("secure_topic", value={"auth": "success"}, format="json")\n'
+        '        print("🚀 Mensaje seguro enviado.")\n'
+    )
+
+    sasl_consumer = (
+        "from wkafka import WKafka\n"
+        "sasl_config = {\n"
+        '    "security_protocol": "SASL_PLAINTEXT",\n'
+        '    "sasl_mechanism": "PLAIN",\n'
+        '    "sasl_plain_username": "external-user",\n'
+        '    "sasl_plain_password": "mdL0Q9gKAANuglBV8KaGvPYS6NihQP5u"\n'
+        "}\n"
+        'kafka = WKafka(bootstrap_servers="localhost:30092", dynamic_group_id=True, **sasl_config)\n'
+        '@kafka.consumer(topic="secure_topic", format="json")\n'
+        "def on_secure_msg(msg):\n"
+        '    print(f"🔒 Recibido en canal seguro: {msg.value}")\n'
+        'if __name__ == "__main__":\n'
+        "    kafka.run_consumers(block=True)\n"
+    )
+
     return (
         "WKAFKA EXPERT BLUEPRINTS (PRODUCTION REFERENCE - READ/WRITE FOR EVERY SERIALIZATION)\n\n"
         "=== 1. BASIC JSON CONSUMER ===\n" + basic_code + "\n"
         "=== 2. IMAGE CONSUMER ===\n" + image_code + "\n"
         "=== 3. VIDEO FRAME STREAM CONSUMER ===\n" + video_code + "\n"
         "=== 4. SEND JSON PRODUCER ===\n" + producer_json + "\n"
-        "=== 5. SEND IMAGE PRODUCER ===\n" + producer_image
+        "=== 5. SEND IMAGE PRODUCER ===\n" + producer_image + "\n"
+        "=== 6. SASL SECURE SENDER ===\n" + sasl_producer + "\n"
+        "=== 7. SASL SECURE CONSUMER ===\n" + sasl_consumer
     )
 
 
