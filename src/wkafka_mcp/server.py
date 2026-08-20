@@ -493,6 +493,7 @@ def adapt_code_to_wkafka(
     value_type: str = "json",
     kafka_server: str = "localhost:9092",
     client_name: str = "adapted_service",
+    group_id: str = None,
 ) -> str:
     """Adapts arbitrary Python processing code to run inside a WKafka consumer trigger.
 
@@ -502,25 +503,41 @@ def adapt_code_to_wkafka(
         value_type: The serialization format (json, image, or file).
         kafka_server: Bootstrap server address.
         client_name: The client ID name for Wkafka.
+        group_id: Optional consumer group ID.
     """
+    group_id_str = f', group_id="{group_id}"' if group_id else ""
     adapted_code = "import cv2\n" if value_type == "image" else ""
-    adapted_code += (
-        "from wkafka.controller import Wkafka\n\n"
-        f"kafka_client = Wkafka(server=\"{kafka_server}\", name=\"{client_name}\")\n\n"
-        f"@kafka_client.consumer(topic=\"{topic}\", value_type=\"{value_type}\")\n"
-        "def process_incoming_message(data):\n"
-        "    \"\"\"Automatically adapted handler wrapping the original processing logic.\"\"\"\n"
-        "    # Access the payload via data.value and headers via data.header / data.headers\n"
-    )
 
-    indented_source = ""
-    for line in source_code.splitlines():
-        if line.strip():
-            indented_source += "    " + line + "\n"
-        else:
-            indented_source += "\n"
+    if "def main(" in source_code:
+        # If the script has a main() function, append the trigger that calls it
+        adapted_code += (
+            "from wkafka.controller import Wkafka\n\n"
+            f"{source_code}\n\n"
+            f"kafka_client = Wkafka(server=\"{kafka_server}\", name=\"{client_name}\")\n\n"
+            f"@kafka_client.consumer(topic=\"{topic}\", value_type=\"{value_type}\"{group_id_str})\n"
+            "def kafka_trigger(data):\n"
+            "    \"\"\"Trigger callback that routes incoming messages to the main function.\"\"\"\n"
+            "    main(data)\n\n"
+        )
+    else:
+        # Indent everything under a new process callback
+        adapted_code += (
+            "from wkafka.controller import Wkafka\n\n"
+            f"kafka_client = Wkafka(server=\"{kafka_server}\", name=\"{client_name}\")\n\n"
+            f"@kafka_client.consumer(topic=\"{topic}\", value_type=\"{value_type}\"{group_id_str})\n"
+            "def process_incoming_message(data):\n"
+            "    \"\"\"Automatically adapted handler wrapping the original processing logic.\"\"\"\n"
+            "    # Access the payload via data.value and headers via data.header / data.headers\n"
+        )
 
-    adapted_code += indented_source + "\n"
+        indented_source = ""
+        for line in source_code.splitlines():
+            if line.strip():
+                indented_source += "    " + line + "\n"
+            else:
+                indented_source += "\n"
+        adapted_code += indented_source + "\n"
+
     adapted_code += (
         "if __name__ == \"__main__\":\n"
         "    print(\"Starting adapted WKafka consumer trigger service...\")\n"
