@@ -15,7 +15,9 @@ from wkafka_mcp.catalog import PatternsCatalog
 from wkafka_mcp.templates import TemplateGenerator
 
 # Setup logging strictly to stderr to avoid breaking MCP protocol
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s", stream=sys.stderr)
+logging.basicConfig(
+    level=logging.INFO, format="%(levelname)s: %(message)s", stream=sys.stderr
+)
 logger = logging.getLogger(__name__)
 
 # PID file for background service
@@ -37,16 +39,16 @@ def get_wkafka_architect_blueprints() -> str:
     basic_code = (
         "from wkafka import WKafka\n"
         "\n"
-        "kafka = WKafka(bootstrap_servers=\"localhost:9092\")\n"
+        'kafka = WKafka(bootstrap_servers="localhost:9092")\n'
         "\n"
-        "@kafka.consumer(topic=\"orders\", format=\"json\")\n"
+        '@kafka.consumer(topic="orders", format="json")\n'
         "def handle_order(msg):\n"
-        "    print(f\"New order: {msg.value}\")\n"
+        '    print(f"New order: {msg.value}")\n'
         "\n"
         "kafka.run_consumers(block=True)\n"
         "\n"
         "with kafka.producer() as p:\n"
-        "    p.send(\"orders\", value={\"id\": 123}, key=\"order-123\", format=\"json\")\n"
+        '    p.send("orders", value={"id": 123}, key="order-123", format="json")\n'
     )
 
     image_code = (
@@ -57,14 +59,14 @@ def get_wkafka_architect_blueprints() -> str:
         "kafka = WKafka()\n"
         "serializer = ImageSerializer()\n"
         "\n"
-        "@kafka.consumer(topic=\"camera-frames\", format=\"image\")\n"
+        '@kafka.consumer(topic="camera-frames", format="image")\n'
         "def handle_frame(msg):\n"
         "    # msg.value is a numpy.ndarray (BGR frame)\n"
-        "    cv2.imshow(\"frame\", msg.value)\n"
+        '    cv2.imshow("frame", msg.value)\n'
         "\n"
         "with kafka.producer() as p:\n"
-        "    frame = cv2.imread(\"image.jpg\")\n"
-        "    p.send(\"camera-frames\", value=frame, format=\"image\", quality=85)\n"
+        '    frame = cv2.imread("image.jpg")\n'
+        '    p.send("camera-frames", value=frame, format="image", quality=85)\n'
     )
 
     yaml_code = (
@@ -72,28 +74,28 @@ def get_wkafka_architect_blueprints() -> str:
         "\n"
         "kafka = WKafka()\n"
         "\n"
-        "@kafka.consumer(topic=\"config-updates\", format=\"yaml\")\n"
+        '@kafka.consumer(topic="config-updates", format="yaml")\n'
         "def handle_config(msg):\n"
-        "    print(f\"Applied config: {msg.value}\")\n"
+        '    print(f"Applied config: {msg.value}")\n'
         "\n"
         "with kafka.producer() as p:\n"
-        "    p.send(\"config-updates\", value={\"feature\": \"dark_mode\", \"enabled\": True}, format=\"yaml\")\n"
+        '    p.send("config-updates", value={"feature": "dark_mode", "enabled": True}, format="yaml")\n'
     )
 
     sasl_code = (
         "from wkafka import WKafka\n"
         "\n"
         "kafka = WKafka(\n"
-        "    bootstrap_servers=\"my-broker:9092\",\n"
-        "    security_protocol=\"SASL_PLAINTEXT\",\n"
-        "    sasl_mechanism=\"SCRAM-SHA-512\",\n"
-        "    sasl_plain_username=\"admin\",\n"
-        "    sasl_plain_password=\"password\",\n"
+        '    bootstrap_servers="my-broker:9092",\n'
+        '    security_protocol="SASL_PLAINTEXT",\n'
+        '    sasl_mechanism="SCRAM-SHA-512",\n'
+        '    sasl_plain_username="admin",\n'
+        '    sasl_plain_password="password",\n'
         ")\n"
         "\n"
-        "@kafka.consumer(topic=\"secure-topic\", format=\"json\")\n"
+        '@kafka.consumer(topic="secure-topic", format="json")\n'
         "def handle_secure(msg):\n"
-        "    print(f\"Secure message: {msg.value}\")\n"
+        '    print(f"Secure message: {msg.value}")\n'
     )
 
     headers_code = (
@@ -103,10 +105,10 @@ def get_wkafka_architect_blueprints() -> str:
         "\n"
         "with kafka.producer() as p:\n"
         "    p.send(\n"
-        "        \"orders\",\n"
-        "        value={\"id\": 456},\n"
-        "        headers={\"trace_id\": \"abc123\", \"tenant\": \"acme\"},\n"
-        "        format=\"json\",\n"
+        '        "orders",\n'
+        '        value={"id": 456},\n'
+        '        headers={"trace_id": "abc123", "tenant": "acme"},\n'
+        '        format="json",\n'
         "    )\n"
     )
 
@@ -115,23 +117,23 @@ def get_wkafka_architect_blueprints() -> str:
         "\n"
         "kafka = WKafka()\n"
         "\n"
-        "@kafka.consumer(topic=\"events\", key_filter=\"payments\", format=\"json\")\n"
+        '@kafka.consumer(topic="events", key_filter="payments", format="json")\n'
         "def handle_payments(msg):\n"
-        "    # Only messages with key == \"payments\" reach this handler\n"
-        "    print(f\"Payment: {msg.value}\")\n"
+        '    # Only messages with key == "payments" reach this handler\n'
+        '    print(f"Payment: {msg.value}")\n'
     )
 
     legacy_code = (
         "from wkafka.controller.wkafka import Wkafka\n"
         "\n"
         "# Legacy-compatible bridge: server/name/retry_delay/max_retries\n"
-        "kafka = Wkafka(server=\"localhost:9092\", name=\"legacy-app\", max_retries=3)\n"
+        'kafka = Wkafka(server="localhost:9092", name="legacy-app", max_retries=3)\n'
         "\n"
-        "@kafka.consumer(topic=\"orders\", value_type=\"json\")\n"
+        '@kafka.consumer(topic="orders", value_type="json")\n'
         "def handle(msg):\n"
-        "    print(f\"Received: {msg.value}\")\n"
+        '    print(f"Received: {msg.value}")\n'
         "\n"
-        "kafka.send(\"orders\", value={\"id\": 1}, key=\"k1\")\n"
+        'kafka.send("orders", value={"id": 1}, key="k1")\n'
     )
 
     return (
@@ -218,7 +220,9 @@ def search_wkafka_pattern(query: str) -> str:
 
 @mcp.tool()
 def deploy_wkafka_scaffolding(
-    target_dir: str, project_name: str = "wkafka_project", scaffold_type: str = "standard"
+    target_dir: str,
+    project_name: str = "wkafka_project",
+    scaffold_type: str = "standard",
 ) -> str:
     """Deploys a professional WKafka project structure following wisrovi standards."""
     try:
@@ -241,7 +245,9 @@ def deploy_wkafka_scaffolding(
 
 
 @mcp.tool()
-def generate_from_pattern(pattern_name: str, target_dir: str, project_name: str = "wkafka_app") -> str:
+def generate_from_pattern(
+    pattern_name: str, target_dir: str, project_name: str = "wkafka_app"
+) -> str:
     """Generate a complete project from a specific catalog pattern.
 
     Fetches the pattern details and deploys a tailored project structure
@@ -318,9 +324,15 @@ def validate_kafka_config(config_code: str) -> str:
     if "bootstrap_servers" not in config_code:
         checks.append("⚠️ Missing bootstrap_servers configuration")
 
-    for secret_word in ("password=", "password =", "sasl_plain_password=\"", "secret"):
-        if secret_word in config_code and "os.environ" not in config_code and "getenv" not in config_code:
-            checks.append("⚠️ Hardcoded credential detected - load secrets from environment variables")
+    for secret_word in ("password=", "password =", 'sasl_plain_password="', "secret"):
+        if (
+            secret_word in config_code
+            and "os.environ" not in config_code
+            and "getenv" not in config_code
+        ):
+            checks.append(
+                "⚠️ Hardcoded credential detected - load secrets from environment variables"
+            )
             break
 
     if not checks:
@@ -383,7 +395,13 @@ def print_config(write_file: bool = True):
     """Prints or saves the JSON configuration for agents."""
     python_path = sys.executable
     config = {
-        "mcpServers": {"wkafka-mcp": {"command": python_path, "args": ["-m", "wkafka_mcp.server", "run"], "env": {}}}
+        "mcpServers": {
+            "wkafka-mcp": {
+                "command": python_path,
+                "args": ["-m", "wkafka_mcp.server", "run"],
+                "env": {},
+            }
+        }
     }
 
     config_json = json.dumps(config, indent=2)
@@ -421,7 +439,9 @@ def print_config(write_file: bool = True):
 
 def main():
     """Parse CLI arguments and dispatch to the requested command."""
-    parser = argparse.ArgumentParser(description="wkafka-mcp: WKafka Architect MCP Server")
+    parser = argparse.ArgumentParser(
+        description="wkafka-mcp: WKafka Architect MCP Server"
+    )
     parser.add_argument(
         "command",
         nargs="?",
@@ -430,7 +450,9 @@ def main():
         help="Command to execute (default: run)",
     )
     parser.add_argument(
-        "--print", action="store_true", help="Print configuration to stdout instead of saving to .agents/"
+        "--print",
+        action="store_true",
+        help="Print configuration to stdout instead of saving to .agents/",
     )
 
     args = parser.parse_args()
