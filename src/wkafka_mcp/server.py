@@ -340,6 +340,94 @@ def validate_kafka_config(config_code: str) -> str:
     return "\n".join(checks)
 
 
+@mcp.tool()
+def generate_wkafka_consumer(
+    topic: str,
+    format: str = "json",
+    key_filter: str = None,
+    target_file: str = None,
+) -> str:
+    """Generate production-ready WKafka consumer boilerplate code.
+
+    Args:
+        topic: The Kafka topic to subscribe to.
+        format: Serialization format (json, yaml, or image).
+        key_filter: Optional filter to consume only messages matching this key.
+        target_file: Optional absolute path to write the generated code directly to.
+    """
+    key_filter_str = f', key_filter="{key_filter}"' if key_filter else ""
+    code = (
+        "from wkafka import WKafka\n"
+        "from config.settings import BOOTSTRAP_SERVERS, CLIENT_ID\n\n"
+        "# Initialize WKafka consumer with connection settings\n"
+        "kafka = WKafka(bootstrap_servers=BOOTSTRAP_SERVERS, client_id=CLIENT_ID)\n\n"
+        f'@kafka.consumer(topic="{topic}", format="{format}"{key_filter_str}, auto_offset_reset="earliest")\n'
+        f"def handle_{topic.replace('-', '_')}(msg):\n"
+        '    """Consumer callback for processing messages."""\n'
+        '    # msg.value contains the deserialized payload\n'
+        '    print(f"Received message from topic {topic}: {msg.value} (key: {msg.key}, offset: {msg.offset})")\n\n'
+        'if __name__ == "__main__":\n'
+        '    print("Starting consumers... Press Ctrl+C to stop.")\n'
+        '    kafka.run_consumers(block=True)\n'
+    )
+
+    if target_file:
+        try:
+            if not os.path.isabs(target_file):
+                return "Error: target_file must be an absolute path."
+            os.makedirs(os.path.dirname(target_file), exist_ok=True)
+            with open(target_file, "w", encoding="utf-8") as f:
+                f.write(code)
+            return f"Success: Consumer code written to {target_file}"
+        except OSError as e:
+            return f"Error writing file: {str(e)}"
+
+    return code
+
+
+@mcp.tool()
+def generate_wkafka_producer(
+    topic: str,
+    format: str = "json",
+    target_file: str = None,
+) -> str:
+    """Generate production-ready WKafka producer boilerplate code.
+
+    Args:
+        topic: The Kafka topic to send messages to.
+        format: Serialization format (json, yaml, or image).
+        target_file: Optional absolute path to write the generated code directly to.
+    """
+    code = (
+        "from wkafka import WKafka\n"
+        "from config.settings import BOOTSTRAP_SERVERS, CLIENT_ID, ACKS\n\n"
+        "# Initialize WKafka producer with connection settings\n"
+        "kafka = WKafka(bootstrap_servers=BOOTSTRAP_SERVERS, client_id=CLIENT_ID, acks=ACKS)\n\n"
+        "def send_message(payload, key=None):\n"
+        '    """Sends a single message safely using the producer context manager."""\n'
+        "    with kafka.producer() as p:\n"
+        f'        p.send("{topic}", value=payload, key=key, format="{format}")\n'
+        '        print(f"Message sent to {topic}")\n\n'
+        'if __name__ == "__main__":\n'
+        '    # Example payload\n'
+        '    example_data = {"status": "ok", "message": "hello from wkafka producer"}\n'
+        '    send_message(example_data, key="test-key")\n'
+    )
+
+    if target_file:
+        try:
+            if not os.path.isabs(target_file):
+                return "Error: target_file must be an absolute path."
+            os.makedirs(os.path.dirname(target_file), exist_ok=True)
+            with open(target_file, "w", encoding="utf-8") as f:
+                f.write(code)
+            return f"Success: Producer code written to {target_file}"
+        except OSError as e:
+            return f"Error writing file: {str(e)}"
+
+    return code
+
+
 # --- CLI Actions ---
 
 
