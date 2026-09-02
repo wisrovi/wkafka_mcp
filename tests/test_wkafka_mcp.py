@@ -642,3 +642,68 @@ def test_generate_pydantic_kafka_model(tmp_path):
     assert "saved to" in res
     assert (tmp_path / "pydantic_consumer.py").exists()
 
+
+def test_generate_from_pattern_relative_path_error():
+    """Validates generate_from_pattern fails on relative path."""
+    res = server.generate_from_pattern("basic_json_messaging", target_dir="relative/path")
+    assert "must be an absolute path" in res
+
+
+def test_generate_from_pattern_not_found():
+    """Validates generate_from_pattern fails on invalid pattern name."""
+    res = server.generate_from_pattern("non_existent_pattern_123", target_dir="/tmp/valid_abs_path")
+    assert "not found" in res
+
+
+def test_generate_from_pattern_success(tmp_path):
+    """Validates generate_from_pattern creates files correctly."""
+    target_dir = str(tmp_path / "gen_proj")
+    res = server.generate_from_pattern("basic_json_messaging", target_dir=target_dir, project_name="my_test_app")
+    assert "Success: Project 'my_test_app'" in res
+    assert (tmp_path / "gen_proj" / "examples" / "basic_json_messaging.py").exists()
+
+
+def test_print_config_stdout(capsys):
+    """Validates print_config prints JSON when write_file is False."""
+    server.print_config(write_file=False)
+    captured = capsys.readouterr()
+    assert "mcpServers" in captured.out
+    assert "wkafka-mcp" in captured.out
+
+
+def test_start_and_stop_background(tmp_path):
+    """Validates background server process management."""
+    with mock.patch("wkafka_mcp.server.PID_FILE", str(tmp_path / "test.pid")):
+        # Stop when no server running
+        server.stop_background()
+
+        # Mock Popen for start_background
+        mock_proc = mock.MagicMock()
+        mock_proc.__enter__.return_value.pid = 9999
+        with mock.patch("subprocess.Popen", return_value=mock_proc):
+            server.start_background()
+            assert (tmp_path / "test.pid").exists()
+
+            # Start when already running
+            server.start_background()
+
+        # Stop running server
+        with mock.patch("os.kill") as mock_kill:
+            server.stop_background()
+            mock_kill.assert_called_once_with(9999, 15)
+            assert not (tmp_path / "test.pid").exists()
+
+
+def test_main_cli_commands():
+    """Validates CLI entry point commands."""
+    with mock.patch("sys.argv", ["wkafka-mcp", "config", "--print"]):
+        server.main()
+
+    with mock.patch("sys.argv", ["wkafka-mcp", "help"]):
+        server.main()
+
+    with mock.patch("sys.argv", ["wkafka-mcp", "run-sse"]), mock.patch("wkafka_mcp.server.run_sse") as mock_run:
+        server.main()
+        mock_run.assert_called_once()
+
+
