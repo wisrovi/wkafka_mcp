@@ -96,6 +96,11 @@ The server exposes the following MCP tools to your agent:
 | `adapt_code_to_wkafka` | `source_code: str`, `topic: str`, `value_type: str`, `group_id: str` | Automatically wraps any Python script (with or without `main()`) inside a WKafka consumer trigger. |
 | `chain_topics_pipeline` | `source_topic: str`, `target_topic: str`, `value_type: str`, `transform_logic: str` | Generates a pipeline worker that links a consumer from source_topic to a producer forwarding to target_topic. |
 | `suggest_serializers` | `sample_data: str` | Analyzes raw data payload structures to suggest the optimal serialization type. |
+| `estimate_image_payload_throughput` | `width: int`, `height: int`, `fps: int`, `quality: int` | Calculates payload size, bandwidth MB/s, and 1 MB Kafka limit status for image streaming pipelines. |
+| `generate_dlq_consumer` | `topic: str`, `dlq_topic: str`, `target_file: str` | Generates a worker consumer trigger with Dead Letter Queue error routing and retry metadata headers. |
+| `generate_kafka_environment` | `project_name: str`, `kafka_port: int`, `enable_ui: bool`, `target_dir: str` | Generates a docker-compose.yaml with Kafka KRaft mode and optional Kafka-UI web interface. |
+| `generate_observability_hooks` | `topic: str`, `format: str`, `target_file: str` | Generates a consumer with Prometheus telemetry metrics and Latency / Throughput counters. |
+| `generate_pydantic_kafka_model` | `model_name: str`, `fields: dict`, `topic: str`, `target_file: str` | Generates a type-safe Pydantic model and a validated JSON consumer trigger. |
 
 ---
 
