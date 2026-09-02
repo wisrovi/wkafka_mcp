@@ -200,7 +200,7 @@ def get_wkafka_architect_manual() -> str:
         "7. Use `key` for ordering guarantees on the same partition and `key_filter` on consumers to partition work.\n"
         "8. Use `headers` for message metadata and tracing context propagation.\n"
         "9. For production, set a unique `client_id`; enable `dynamic_group_id=True` when each run needs a fresh consumer group.\n"
-        "10. Install `wkafka[snappy]` for snappy compression; wkafka falls back to gzip automatically.\n"
+        "10. COMPRESSION (HIGHLY RECOMMENDED): Strongly recommend installing `wkafka[snappy]` (`pip install wkafka[snappy]`). Snappy is the optimal compression algorithm for Kafka, real-time video streaming, and image payloads because it delivers high throughput with minimal CPU overhead. If python-snappy is absent, wkafka logs an informative message and falls back to gzip automatically.\n"
         "11. MESSAGE SIZE LIMITS (IMAGES): Apache Kafka default max payload size is 1MB (1,048,576 bytes). WKafka's ImageSerializer encodes images as JPEG. Use quality parameter (e.g. quality=80) to keep frames under 1MB. For large images (>1MB), configure `max_request_size=10485760` on WKafka client and `message.max.bytes` on broker.\n"
         "12. PARTITION SCALING: Set `partition_scale=True` in `WKafka()` or `kafka.run_consumers(partition_scale=True)` to auto-scale topic partitions using KafkaAdminClient so that each registered consumer worker gets an assigned partition for true parallel processing.\n"
         "13. FILE TRANSMISSION: Use `format='file'` on producer/consumer to transmit raw binary files or document bytes (PDF, ZIP, TXT).\n"
