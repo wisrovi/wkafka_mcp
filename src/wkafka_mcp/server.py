@@ -813,6 +813,239 @@ def check_schema_compatibility(original_schema: str, new_schema: str) -> str:
     return result
 
 
+# --- Advanced Architecture Tools ---
+
+
+@mcp.tool()
+def estimate_image_payload_throughput(
+    width: int = 1920, height: int = 1080, fps: int = 30, quality: int = 80
+) -> str:
+    """Calculates estimated payload sizes, throughput MB/s, and Kafka limits for image streaming pipelines."""
+    uncompressed_bytes = width * height * 3
+    estimated_frame_bytes = int(uncompressed_bytes * (quality / 100.0) * 0.15)
+    throughput_mbps = (estimated_frame_bytes * fps) / (1024 * 1024)
+
+    is_over_limit = estimated_frame_bytes > 1048576
+    status = (
+        "⚠️ EXCEEDS DEFAULT 1 MB KAFKA LIMIT!"
+        if is_over_limit
+        else "✅ Within 1 MB default Kafka limit."
+    )
+
+    recommendations = []
+    if is_over_limit:
+        recommendations.append(
+            f"- Lower quality parameter (e.g., quality=65) or lower resolution ({width // 2}x{height // 2})."
+        )
+        recommendations.append(
+            f"- Pass `max_request_size={estimated_frame_bytes + 524288}` to WKafka and set `message.max.bytes` on broker."
+        )
+    else:
+        recommendations.append(
+            "- Default WKafka configuration will handle these frames comfortably."
+        )
+
+    recommendations.append(
+        "- Ensure `wkafka[snappy]` is installed for extra network payload compression."
+    )
+
+    result = (
+        f"📊 IMAGE STREAMING ESTIMATES ({width}x{height} @ {fps} FPS, quality={quality}):\n"
+        f"  - Uncompressed Frame Size: {uncompressed_bytes / (1024 * 1024):.2f} MB\n"
+        f"  - Estimated JPEG Frame Size: {estimated_frame_bytes / 1024:.2f} KB ({estimated_frame_bytes} bytes)\n"
+        f"  - Total Network Throughput: {throughput_mbps:.2f} MB/s\n"
+        f"  - Kafka Limit Status: {status}\n\n"
+        f"💡 Recommendations:\n" + "\n".join(recommendations)
+    )
+    return result
+
+
+@mcp.tool()
+def generate_dlq_consumer(
+    topic: str, dlq_topic: str = "", target_file: str = ""
+) -> str:
+    """Generates a WKafka consumer trigger with Dead Letter Queue (DLQ) error routing."""
+    actual_dlq = dlq_topic if dlq_topic else f"{topic}.DLQ"
+    code = (
+        "import datetime\n"
+        "from wkafka import WKafka\n"
+        "from loguru import logger\n\n"
+        'kafka = WKafka(bootstrap_servers="localhost:9092", dynamic_group_id=True)\n\n'
+        f'@kafka.consumer(topic="{topic}", format="json")\n'
+        "def process_with_dlq(msg):\n"
+        '    """Consumer with automatic Dead Letter Queue routing on failure."""\n'
+        "    try:\n"
+        '        logger.info(f"Processing message offset {msg.offset} on topic {msg.topic}")\n'
+        "        # TODO: Add business logic here\n"
+        "        data = msg.value\n"
+        '        if not data or "status" not in data:\n'
+        '            raise ValueError("Invalid payload schema")\n'
+        "    except Exception as exc:\n"
+        '        logger.error(f"Failed to process message offset {msg.offset}: {exc}. Routing to DLQ.")\n'
+        "        with kafka.producer() as dlq_producer:\n"
+        "            dlq_headers = {\n"
+        '                "x-error-message": str(exc),\n'
+        '                "x-failed-at": datetime.datetime.now(datetime.timezone.utc).isoformat(),\n'
+        '                "x-original-topic": msg.topic,\n'
+        '                "x-original-offset": str(msg.offset),\n'
+        "            }\n"
+        "            dlq_producer.send(\n"
+        f'                topic="{actual_dlq}",\n'
+        "                value=msg.value,\n"
+        "                key=msg.key,\n"
+        '                format="json",\n'
+        "                headers=dlq_headers,\n"
+        "            )\n\n"
+        'if __name__ == "__main__":\n'
+        "    kafka.run_consumers(block=True)\n"
+    )
+    if target_file:
+        os.makedirs(os.path.dirname(os.path.abspath(target_file)) or ".", exist_ok=True)
+        with open(target_file, "w", encoding="utf-8") as f:
+            f.write(code)
+        return f"✅ DLQ Consumer generated and saved to {target_file}"
+    return code
+
+
+@mcp.tool()
+def generate_kafka_environment(
+    project_name: str = "wkafka_app",
+    kafka_port: int = 9092,
+    enable_ui: bool = True,
+    target_dir: str = "",
+) -> str:
+    """Generates a docker-compose.yaml with Kafka KRaft mode and web management UI."""
+    ui_service = (
+        "  kafka-ui:\n"
+        "    image: provectuslabs/kafka-ui:latest\n"
+        "    container_name: wkafka_ui\n"
+        "    ports:\n"
+        '      - "8080:8080"\n'
+        "    environment:\n"
+        "      - KAFKA_CLUSTERS_0_NAME=local-kraft\n"
+        f"      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:{kafka_port}\n"
+        "    depends_on:\n"
+        "      - kafka\n"
+    ) if enable_ui else ""
+
+    content = (
+        'version: "3.8"\n\n'
+        "services:\n"
+        "  kafka:\n"
+        "    image: apache/kafka:latest\n"
+        f"    container_name: {project_name}_broker\n"
+        "    ports:\n"
+        f'      - "{kafka_port}:{kafka_port}"\n'
+        "    environment:\n"
+        "      KAFKA_NODE_ID: 1\n"
+        "      KAFKA_PROCESS_ROLES: broker,controller\n"
+        "      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093\n"
+        f"      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:{kafka_port}\n"
+        "      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER\n"
+        "      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT\n"
+        "      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093\n"
+        "      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1\n"
+        "      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1\n"
+        "      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1\n"
+        "      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0\n"
+        f"{ui_service}"
+    )
+
+    if target_dir:
+        os.makedirs(target_dir, exist_ok=True)
+        out_path = os.path.join(target_dir, "docker-compose.yaml")
+        with open(out_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        return f"✅ docker-compose.yaml generated at {out_path}"
+    return content
+
+
+@mcp.tool()
+def generate_observability_hooks(
+    topic: str, format: str = "json", target_file: str = ""
+) -> str:
+    """Generates a WKafka consumer integrated with Prometheus metrics and telemetry."""
+    code = (
+        "import time\n"
+        "from prometheus_client import Counter, Histogram, start_http_server\n"
+        "from wkafka import WKafka\n"
+        "from loguru import logger\n\n"
+        "# Prometheus Metrics\n"
+        "MESSAGES_PROCESSED = Counter(\n"
+        '    "kafka_messages_processed_total",\n'
+        '    "Total messages processed",\n'
+        '    ["topic", "status"],\n'
+        ")\n"
+        "PROCESSING_TIME = Histogram(\n"
+        '    "kafka_message_processing_seconds",\n'
+        '    "Time spent processing message",\n'
+        '    ["topic"],\n'
+        ")\n\n"
+        'kafka = WKafka(bootstrap_servers="localhost:9092")\n\n'
+        f'@kafka.consumer(topic="{topic}", format="{format}")\n'
+        "def monitored_consumer(msg):\n"
+        '    """Consumer wrapper with built-in Prometheus metrics."""\n'
+        "    start_t = time.time()\n"
+        "    try:\n"
+        "        # TODO: Add your business processing logic\n"
+        '        logger.info(f"Received message offset {msg.offset} on topic {msg.topic}")\n'
+        '        MESSAGES_PROCESSED.labels(topic=msg.topic, status="success").inc()\n'
+        "    except Exception as e:\n"
+        '        MESSAGES_PROCESSED.labels(topic=msg.topic, status="error").inc()\n'
+        "        raise e\n"
+        "    finally:\n"
+        "        PROCESSING_TIME.labels(topic=msg.topic).observe(time.time() - start_t)\n\n"
+        'if __name__ == "__main__":\n'
+        '    logger.info("Starting Prometheus metrics server on port 8000...")\n'
+        "    start_http_server(8000)\n"
+        "    kafka.run_consumers(block=True)\n"
+    )
+    if target_file:
+        os.makedirs(os.path.dirname(os.path.abspath(target_file)) or ".", exist_ok=True)
+        with open(target_file, "w", encoding="utf-8") as f:
+            f.write(code)
+        return f"✅ Monitored consumer saved to {target_file}"
+    return code
+
+
+@mcp.tool()
+def generate_pydantic_kafka_model(
+    model_name: str, fields: dict, topic: str = "events", target_file: str = ""
+) -> str:
+    """Generates a type-safe Pydantic model and a WKafka consumer trigger."""
+    field_lines = []
+    for fname, ftype in fields.items():
+        field_lines.append(f"    {fname}: {ftype}")
+
+    fields_str = "\n".join(field_lines) if field_lines else "    pass"
+
+    code = (
+        "from pydantic import BaseModel, Field, ValidationError\n"
+        "from wkafka import WKafka\n"
+        "from loguru import logger\n\n"
+        f"class {model_name}(BaseModel):\n"
+        '    """Type-safe Pydantic model for Kafka JSON messages."""\n'
+        f"{fields_str}\n\n"
+        'kafka = WKafka(bootstrap_servers="localhost:9092")\n\n'
+        f'@kafka.consumer(topic="{topic}", format="json")\n'
+        f"def handle_{model_name.lower()}(msg):\n"
+        "    try:\n"
+        f"        payload = {model_name}.model_validate(msg.value)\n"
+        '        logger.info(f"Validated payload: {{payload}}")\n'
+        "        # TODO: Implement domain logic with validated payload\n"
+        "    except ValidationError as err:\n"
+        '        logger.error(f"Invalid message schema at offset {{msg.offset}}: {{err}}")\n\n'
+        'if __name__ == "__main__":\n'
+        "    kafka.run_consumers(block=True)\n"
+    )
+    if target_file:
+        os.makedirs(os.path.dirname(os.path.abspath(target_file)) or ".", exist_ok=True)
+        with open(target_file, "w", encoding="utf-8") as f:
+            f.write(code)
+        return f"✅ Pydantic model and consumer saved to {target_file}"
+    return code
+
+
 # --- CLI Actions ---
 
 
