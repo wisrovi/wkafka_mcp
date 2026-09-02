@@ -22,7 +22,7 @@ This MCP server acts as an **expert assistant interface** for AI agents. It equi
 
 ---
 
-## 🛠️ Technologies and Ecosytem Libraries Used
+## 🛠️ Tecnologías y Librerías Relevantes
 
 This component is built using the following core technologies:
 
