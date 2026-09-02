@@ -578,3 +578,67 @@ def test_main_run_uses_stdio(monkeypatch):
     with mock.patch.object(server.mcp, "run") as mock_run:
         server.main()
     mock_run.assert_called_once_with(transport="stdio")
+
+
+def test_estimate_image_payload_throughput():
+    """Validates estimate_image_payload_throughput outputs accurate calculations and advice."""
+    res = server.estimate_image_payload_throughput(1920, 1080, 30, 80)
+    assert "IMAGE STREAMING ESTIMATES" in res
+    assert "MB/s" in res
+    assert "Within 1 MB default Kafka limit" in res
+
+    res_large = server.estimate_image_payload_throughput(4000, 3000, 60, 95)
+    assert "EXCEEDS DEFAULT 1 MB KAFKA LIMIT" in res_large
+
+
+def test_generate_dlq_consumer(tmp_path):
+    """Validates generate_dlq_consumer generates valid Python code and optional file."""
+    code = server.generate_dlq_consumer(topic="orders", dlq_topic="orders.DLQ")
+    assert "@kafka.consumer" in code
+    assert "orders.DLQ" in code
+    assert "x-error-message" in code
+
+    target = str(tmp_path / "dlq_consumer.py")
+    res = server.generate_dlq_consumer(topic="orders", target_file=target)
+    assert "saved to" in res
+    assert (tmp_path / "dlq_consumer.py").exists()
+
+
+def test_generate_kafka_environment(tmp_path):
+    """Validates generate_kafka_environment generates docker-compose configuration."""
+    yml = server.generate_kafka_environment(project_name="test_app", kafka_port=9092, enable_ui=True)
+    assert "apache/kafka" in yml
+    assert "kafka-ui" in yml
+    assert "9092:9092" in yml
+
+    out = server.generate_kafka_environment(project_name="test_app", target_dir=str(tmp_path))
+    assert "docker-compose.yaml generated" in out
+    assert (tmp_path / "docker-compose.yaml").exists()
+
+
+def test_generate_observability_hooks(tmp_path):
+    """Validates generate_observability_hooks generates Prometheus monitoring hooks."""
+    code = server.generate_observability_hooks(topic="telemetry")
+    assert "prometheus_client" in code
+    assert "kafka_messages_processed_total" in code
+    assert "start_http_server" in code
+
+    target = str(tmp_path / "monitored.py")
+    res = server.generate_observability_hooks(topic="telemetry", target_file=target)
+    assert "saved to" in res
+    assert (tmp_path / "monitored.py").exists()
+
+
+def test_generate_pydantic_kafka_model(tmp_path):
+    """Validates generate_pydantic_kafka_model creates Pydantic schema and consumer trigger."""
+    fields = {"id": "int", "name": "str"}
+    code = server.generate_pydantic_kafka_model(model_name="UserEvent", fields=fields, topic="users")
+    assert "class UserEvent(BaseModel):" in code
+    assert "id: int" in code
+    assert "name: str" in code
+
+    target = str(tmp_path / "pydantic_consumer.py")
+    res = server.generate_pydantic_kafka_model(model_name="UserEvent", fields=fields, target_file=target)
+    assert "saved to" in res
+    assert (tmp_path / "pydantic_consumer.py").exists()
+
